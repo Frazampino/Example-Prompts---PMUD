@@ -1,0 +1,36 @@
+import ollama
+bpmn_file_1= 'Cologne.bpmn'
+bpmn_file_2= 'Frankfurt.bpmn'
+prompt = f"""Compare the following two BPMN models and evaluate their similarity:
+
+BPMN Model 1: {bpmn_file_1}
+BPMN Model 2: {bpmn_file_2}
+
+Provide a matching score from 0 to 1, where 0 means no matching and 1 means exact match, along with a brief explanation of the score.
+Identify one-to-one correspondences between transitions and places in both models based on their semantic meaning. Present the mapping in a structured list format (e.g., Task 1 in Model 1 → Task A in Model 2, Gateway 1 in Model 1 → Gateway A in Model 2).
+Example of correct matches:
+Tasks:
+"Send documents by post" (Model 1) → "Send documents by post" (Model 2) (Exact match)
+"Take oral exam" (Model 1) → "Take aptitude test" (Model 2) (Equivalent process step: both involve an assessment test)
+"Wait for results" (Model 1) → "Wait for results" (Model 2) (Exact match)
+"Send letter of acceptance" (Model 1) → "Send letter of acceptance" (Model 2) (Exact match)
+"Send letter of rejection" (Model 1) → "Send letter of rejection" (Model 2) (Exact match)
+Gateways and Events:
+"Evaluate" (Model 1) → "Rank students according to GPA and the test results" (Model 2) (Both serve as evaluation steps but differ in criteria: Model 1 focuses on document-based evaluation, while Model 2 incorporates test scores and GPA.)
+"Check documents" (Model 1) → "Check documents" (Model 2) (Exact match)
+"Wait for bachelor's certificate" (Model 1) → No direct equivalent in Model 2 (Model 1 includes a bachelor's certificate verification step, while Model 2 does not.)
+"Provisional acceptance confirmed" (Model 1) → "Keep in the applicant pool" (Model 2) (Similar concept: Model 1 confirms acceptance, while Model 2 retains candidates for future processing.)
+Respond in a clear and structured format.
+
+"""
+
+response = ollama.chat(model='llama3', messages=[
+    {
+        'role': 'user',
+        'content': prompt,
+    },
+])
+
+# Estrai il contenuto della risposta
+response_content = response['message']['content']
+print(f"Response:\n{response_content}")
