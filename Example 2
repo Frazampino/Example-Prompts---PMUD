@@ -1,0 +1,35 @@
+import ollama
+bpmn_file_1= 'Fu-Berlin.bpmn'
+bpmn_file_2= 'IIS Erlangen.bpmn'
+prompt = f"""Compare the following two BPMN models and evaluate their similarity:
+
+BPMN Model 1: {bpmn_file_1}
+BPMN Model 2: {bpmn_file_2}
+
+Provide a matching score from 0 to 1, where 0 means no matching and 1 means exact match, along with a brief explanation of the score.
+Identify one-to-one correspondences between transitions and places in both models based on their semantic meaning. Present the mapping in a structured list format (e.g., Task 1 in Model 1 → Task A in Model 2, Gateway 1 in Model 1 → Gateway A in Model 2).
+Example of correct matches:
+Tasks:
+"Fill out application form" (FU-Berlin) → "Fill out application form" (IIS Erlangen) (Exact match)
+"Send application" (FU-Berlin) → "Send application" (IIS Erlangen) (Exact match)
+"Take interview" (FU-Berlin) → "Invite for talk" (IIS Erlangen) (Equivalent process step: both involve an assessment through direct interaction)
+"Check application in time" (FU-Berlin) → "Check application in time" (IIS Erlangen) (Exact match)
+"Receive rejection" (FU-Berlin) → "Send rejection" (IIS Erlangen) (Exact match)
+Gateways and Events:
+
+"Evaluate application" (FU-Berlin) → "Score qualifications" (IIS Erlangen) (Both serve as evaluation steps but use different criteria)
+"Check if Bachelor's degree is sufficient" (FU-Berlin) → No direct equivalent in IIS Erlangen (Only FU-Berlin explicitly verifies degree sufficiency)
+"Provisional acceptance confirmed" (FU-Berlin) → "Attach additional requirements" (IIS Erlangen) (Similar concept: additional conditions for final admission)
+Respond in a clear and structured format.
+
+"""
+
+response = ollama.chat(model='mistral', messages=[
+    {
+        'role': 'user',
+        'content': prompt,
+    },
+])
+
+response_content = response['message']['content']
+print(f"Response:\n{response_content}")
