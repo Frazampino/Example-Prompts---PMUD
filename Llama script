@@ -1,1 +1,106 @@
+import xml.etree.ElementTree as ET
+from difflib import SequenceMatcher
+import ollama
 
+def parse_pnml(file_path):
+    """Parses the PNML file and extracts places and transitions."""
+    tree = ET.parse(file_path)
+    root = tree.getroot()
+    places = []
+    transitions = []
+    
+    for elem in root.findall('.//'):
+        if elem.tag == 'place':
+            places.append({'name': elem.attrib.get('name', 'Unnamed')})
+        elif elem.tag == 'transition':
+            transitions.append({'name': elem.attrib.get('name', 'Unnamed')})
+    
+    return places, transitions
+
+def pnml_to_xml(file_path):
+    """Converts the PNML file to XML format."""
+    tree = ET.parse(file_path)
+    root = tree.getroot()
+    return ET.tostring(root, encoding='unicode')
+
+def similarity_score(str1, str2):
+    """Uses the Levenshtein algorithm to compare two strings."""
+    return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
+
+def compare_pnml_files(pnml_file_1, pnml_file_2):
+    """Compares two PNML files and identifies similar places."""
+    # Parsing the PNML files
+    places_pnml1, transitions_pnml1 = parse_pnml(pnml_file_1)
+    places_pnml2, transitions_pnml2 = parse_pnml(pnml_file_2)
+
+    # Creating the prompt for Ollama
+    prompt = f"""Compare the following two Petri net models in PNML format and assess their similarity:
+
+PNML Model 1: {pnml_to_xml(pnml_file_1)}
+PNML Model 2: {pnml_to_xml(pnml_file_2)}
+
+1. Provide a matching score from 0 to 1, where 0 means no matching and 1 means perfect matching, considering both semantic and structural aspects, along with a brief explanation of the score.
+2. Identify one-to-one correspondences between the transitions and places in both models based on their semantic meaning and structure. Provide the mapping in list format (e.g., Transition 1 in Model 1 -> Transition A in Model 2, Place 1 in Model 1 -> Place A in Model 2).
+3. If there are significant structural differences between the models, report them separately.
+
+Respond in a clear and structured format."""
+
+    # Running the prompt for Ollama
+    response = ollama.chat(model='llama3', messages=[{
+        'role': 'user',
+        'content': prompt,
+    }])
+
+    # Extracting similarities from the prompt response
+    similarities = []
+    for match in response['message']['content'].split('\n'):
+        if '->' in match:
+            place1_name, place2_name = match.split(' -> ')
+            similarities.append({
+                "place1_name": place1_name.strip(),
+                "place2_name": place2_name.strip()
+            })
+
+    # Calculating precision, recall, and F1-score
+    true_positives = 0
+    false_positives = 0
+    false_negatives = 0
+
+    for place1 in places_pnml1:
+        for place2 in places_pnml2:
+            # Calculate similarity between place names
+            name_similarity = similarity_score(place1["name"], place2["name"])
+
+            # Check if the similarity exceeds the 0.80 threshold
+            if name_similarity >= 0.60:
+                true_positives += 1
+            elif place1["name"] in [place["name"] for place in places_pnml2]:
+                false_negatives += 1
+
+    # Adding a post-processing step to improve recall
+    for place1 in places_pnml1:
+        for place2 in places_pnml2:
+            if place1["name"].lower() == place2["name"].lower():
+                if place1["name"] not in [place["name"] for place in places_pnml2]:
+                    true_positives += 1
+                    false_negatives -= 1
+
+    precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0
+    recall = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0
+    f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+
+    # Printing the results
+    print("\nSimilarities found:")
+    for similarity in similarities:
+        print(f"{similarity['place1_name']} -> {similarity['place2_name']}")
+
+    print("\nEvaluation Metrics:")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall: {recall:.4f}")
+    print(f"F1-Score: {f1_score:.4f}")
+
+# Run the comparison with two example files
+pnml_file_1 = 'birthCertificate_p247.pnml'
+pnml_file_2 = 'birthCertificate_p248.pnml'
+
+compare_pnml_files(pnml_file_1, pnml_file_2)
