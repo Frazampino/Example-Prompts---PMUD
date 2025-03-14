@@ -3,7 +3,7 @@ from difflib import SequenceMatcher
 import ollama
 
 def parse_pnml(file_path):
-    """Parses the PNML file and extracts places and transitions."""
+    """Parse the PNML file and extract places and transitions."""
     tree = ET.parse(file_path)
     root = tree.getroot()
     places = []
@@ -18,57 +18,34 @@ def parse_pnml(file_path):
     return places, transitions
 
 def pnml_to_xml(file_path):
-    """Converts the PNML file to XML format."""
+    """Convert the PNML file into XML format."""
     tree = ET.parse(file_path)
     root = tree.getroot()
     return ET.tostring(root, encoding='unicode')
 
 def similarity_score(str1, str2):
-    """Uses the Levenshtein algorithm to compare two strings."""
+    """Calculate the similarity between two strings using SequenceMatcher."""
     return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
 
 def compare_pnml_files(pnml_file_1, pnml_file_2):
-    """Compares two PNML files and identifies similar places."""
-    # Parsing the PNML files
+    """Compare two PNML files and identifies matches."""
+    # Parsing PNML files
     places_pnml1, transitions_pnml1 = parse_pnml(pnml_file_1)
     places_pnml2, transitions_pnml2 = parse_pnml(pnml_file_2)
 
-    # Creating the prompt for Ollama
-    prompt = f"""Compare the following two Petri net models in PNML format and assess their similarity:
+    # Creazione del prompt per Ollama
+    prompt = f"""Compare the following two Petri net models in PNML format and evaluate their similarity:
 
-PNML Model 1: {pnml_to_xml(pnml_file_1)}
-PNML Model 2: {pnml_to_xml(pnml_file_2)}
+PNML Model 1: {pnml_to_xml(pnml_file_1)}  
+PNML Model 2: {pnml_to_xml(pnml_file_2)}  
 
-1. Provide a matching score from 0 to 1, where 0 means no similarity and 1 means perfect similarity, considering both semantic and structural aspects, along with a brief explanation of the score.
-2. Identify one-to-one correspondences between the transitions and places in both models based on their semantic meaning. Provide the mapping in list format (e.g., Transition 1 in Model 1 -> Transition A in Model 2, Place 1 in Model 1 -> Place A in Model 2).
-3. If there are significant structural differences between the models, report them separately.
+1. Provide a list of similar places and transitions between the two models, explaining their similarity in terms of **structural** and **semantic** matching.  
 
 Respond in a clear and structured format."""
 
-    # Running the prompt for Ollama
+
+    # Esecuzione del prompt per Ollama
     response = ollama.chat(model='llama3', messages=[{
         'role': 'user',
         'content': prompt,
     }])
-
-    # Extracting similarities from the prompt response
-    similarities = []
-    for match in response['message']['content'].split('\n'):
-        if '->' in match:
-            place1_name, place2_name = match.split(' -> ')
-            similarities.append({
-                "place1_name": place1_name.strip(),
-                "place2_name": place2_name.strip()
-            })
-
-    # Printing the similarities
-    print("\nSimilarities found:")
-    for similarity in similarities:
-        print(f"{similarity['place1_name']} -> {similarity['place2_name']}")
-
-# Run the comparison with two example files
-pnml_file_1 = 'birthCertificate_p247.pnml'
-pnml_file_2 = 'birthCertificate_p248.pnml'
-
-compare_pnml_files(pnml_file_1, pnml_file_2)
-
